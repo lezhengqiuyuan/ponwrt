@@ -25,6 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Fix script executable bits
+        run: |
+          # 仓库最初在 Windows 上创建，部分脚本丢失了可执行位（100644），这里统一修复
+          git ls-files -z | xargs -0 grep -IlZ '^#!' 2>/dev/null | xargs -0 -r chmod +x
+          find scripts -type f -exec chmod +x {} +
+          chmod +x scripts/feeds
+
       - name: Free build space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
