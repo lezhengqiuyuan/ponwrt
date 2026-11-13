@@ -25,12 +25,26 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Fix script executable bits
+      - name: Fix script permissions and line endings
         run: |
-          # 仓库最初在 Windows 上创建，部分脚本丢失了可执行位（100644），这里统一修复
+          # 仓库最初在 Windows 上创建：补齐可执行位，并清理配置文件里的 Windows 换行
           git ls-files -z | xargs -0 grep -IlZ '^#!' 2>/dev/null | xargs -0 -r chmod +x
-          find scripts -type f -exec chmod +x {} +
-          chmod +x scripts/feeds
+          chmod -R +x config scripts
+          find . -path ./.git -prune -o -type f -name '*.sh' -exec chmod +x {} +
+          # 目标系统内需要可执行的脚本（Windows 导入时丢失了执行位）
+          find . -path ./.git -prune -o -type f \( \
+            -path '*/etc/init.d/*' -o -path '*/etc/hotplug.d/*' -o \
+            -path '*/etc/uci-defaults/*' -o -path '*/etc/board.d/*' -o \
+            -path '*/etc/rc.button/*' -o -path '*/etc/rc.local' -o \
+            -path '*/etc/ppp/ip-up.d/*' -o -path '*/etc/ppp/ip-down.d/*' -o \
+            -path '*/usr/bin/*' -o -path '*/usr/sbin/*' -o -path '*/usr/libexec/*' \
+          \) -exec chmod +x {} +
+          sed -i 's/\r$//' configs/*.config
+          # 自检：关键脚本必须可执行，配置文件不得含 CR
+          test -x scripts/feeds
+          test -x config/check-uname.sh
+          test -x config/check-hostcxx.sh
+          ! grep -q $'\r' configs/*.config
 
       - name: Free build space
         run: |
